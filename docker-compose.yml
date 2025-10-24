@@ -11,6 +11,8 @@ services:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - appnet
+    #ports:
+    #  - "5432:5432"
 
   backend:
     build: ./backend
