@@ -6,9 +6,31 @@ const router = Router();
 router.post('/record', async (req, res) => {
   try {
     const userId = (req.body.userId as string) ?? 'default-user';
+    const dateParam = req.body.date as string | undefined; // expected format YYYY-MM-DD (or ISO)
+
+    let tsValue: string;
+    if (dateParam && /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(dateParam)) {
+      // treat as date only, create UTC midnight for that date
+      const parts = dateParam.split('-').map(p => parseInt(p, 10));
+      const [y, m, d] = parts;
+      const dt = new Date(Date.UTC(y, m - 1, d));
+      tsValue = dt.toISOString();
+    } else if (dateParam) {
+      // fallback: try to parse as ISO timestamp
+      const parsed = new Date(dateParam);
+      if (!isNaN(parsed.getTime())) {
+        tsValue = parsed.toISOString();
+      } else {
+        // invalid date string; default to now
+        tsValue = new Date().toISOString();
+      }
+    } else {
+      tsValue = new Date().toISOString();
+    }
+
     const result = await pool.query(
-      'INSERT INTO medicine_records (user_id, ts) VALUES ($1, now()) RETURNING id, user_id, ts',
-      [userId]
+      'INSERT INTO medicine_records (user_id, ts) VALUES ($1, $2) RETURNING id, user_id, ts',
+      [userId, tsValue]
     );
     res.json(result.rows[0]);
   } catch (err) {
