@@ -12,11 +12,16 @@ export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState<Date>(() => startOfMonth(new Date()));
 
   useEffect(() => {
-    fetch(`/api/records?userId=${encodeURIComponent(userId)}`)
+    // fetch records for the visible month (year and month as params)
+    const year = currentMonth.getFullYear();
+    // month as 1-12 (zero pad to 2 digits)
+    const month = String(currentMonth.getMonth() + 1).padStart(2, '0');
+
+    fetch(`/api/records?userId=${encodeURIComponent(userId)}&year=${year}&month=${month}`)
       .then(r => r.json())
       .then(setRecords)
       .catch(console.error);
-  }, []);
+  }, [currentMonth]);
 
   const setOfDays = new Set(records.map(r => r.ts.slice(0,10)));
 

@@ -20,6 +20,49 @@ router.post('/record', async (req, res) => {
 router.get('/records', async (req, res) => {
   try {
     const userId = (req.query.userId as string) ?? 'default-user';
+
+    // Optional year/month filtering (expects year=YYYY and month=MM or M)
+    const yearParam = req.query.year as string | undefined;
+    const monthParam = req.query.month as string | undefined;
+
+    const year = yearParam ? parseInt(yearParam, 10) : NaN;
+    const month = monthParam ? parseInt(monthParam, 10) : NaN; // 1-12
+    const dayParam = req.query.day as string | undefined;
+    const day = dayParam ? parseInt(dayParam, 10) : NaN; // 1-31
+
+    // If year/month/day are valid, filter for that single day
+    if (!Number.isNaN(year) && !Number.isNaN(month) && month >= 1 && month <= 12 && !Number.isNaN(day) && day >= 1 && day <= 31) {
+      const startDate = new Date(Date.UTC(year, month - 1, day));
+      // validate constructed date matches requested year/month/day (reject invalid dates like Feb 30)
+      if (startDate.getUTCFullYear() === year && startDate.getUTCMonth() === month - 1 && startDate.getUTCDate() === day) {
+        const endDate = new Date(Date.UTC(year, month - 1, day + 1));
+        const start = startDate.toISOString();
+        const end = endDate.toISOString();
+
+        const rows = await pool.query(
+          `SELECT id, user_id, ts FROM medicine_records WHERE user_id = $1 AND ts >= $2 AND ts < $3 ORDER BY ts DESC`,
+          [userId, start, end]
+        );
+        res.json(rows.rows);
+        return;
+      }
+      // if invalid date fall through to month handling
+    }
+
+    // If year/month provided (but day not provided or invalid), filter for the full month
+    if (!Number.isNaN(year) && !Number.isNaN(month) && month >= 1 && month <= 12) {
+      const start = new Date(Date.UTC(year, month - 1, 1)).toISOString();
+      const end = new Date(Date.UTC(year, month, 1)).toISOString();
+
+      const rows = await pool.query(
+        `SELECT id, user_id, ts FROM medicine_records WHERE user_id = $1 AND ts >= $2 AND ts < $3 ORDER BY ts DESC`,
+        [userId, start, end]
+      );
+      res.json(rows.rows);
+      return;
+    }
+
+    // Fallback: return all records for the user
     const rows = await pool.query(
       `SELECT id, user_id, ts FROM medicine_records WHERE user_id = $1 ORDER BY ts DESC`,
       [userId]
