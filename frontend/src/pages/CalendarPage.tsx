@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { startOfMonth, endOfMonth, eachDayOfInterval, format, addMonths } from 'date-fns';
+import { startOfMonth, endOfMonth, eachDayOfInterval, format, addMonths, parseISO } from 'date-fns';
 import MonthGrid from '../components/MonthGrid';
 
-type Record = { id: number; user_id: string; ts: string };
+type Record = { id: number; user_id: string; ts_date: string };
 
 export default function CalendarPage() {
   const [records, setRecords] = useState<Record[]>([]);
@@ -23,7 +23,15 @@ export default function CalendarPage() {
       .catch(console.error);
   }, [currentMonth]);
 
-  const setOfDays = new Set(records.map(r => r.ts.slice(0,10)));
+  // normalize any returned ts_date to YYYY-MM-DD to avoid TZ/format mismatches
+  const setOfDays = new Set(records.map(r => {
+    try {
+      return format(parseISO(r.ts_date), 'yyyy-MM-dd');
+    } catch (e) {
+      // fallback: take first 10 chars if already a date-like string
+      return (r.ts_date || '').slice(0, 10);
+    }
+  }));
 
   // compute days for the current selected month
   const days = eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) });
